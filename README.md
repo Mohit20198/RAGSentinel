@@ -1,176 +1,227 @@
-# Enterprise Agentic RAG (Scalable Pipeline)
+<div align="center">
 
-[![CI](https://github.com/yourusername/RAGSentinel/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/RAGSentinel/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+# RAGSentinel
 
-A production-grade, enterprise-level RAG system built with **LangGraph**, **Portkey LLM Gateway**, and **Gemini Embeddings**. The system distinguishes between technical "True Data" and random "Noisy Data" using semantic re-ranking, history-aware planning, and NeMo Guardrails for input/output safety.
+**Enterprise Agentic RAG · LangGraph · Gemini Embeddings · NeMo Guardrails · Qdrant**
 
-## Key Features
+[![CI](https://github.com/Mohit20198/RAGSentinel/actions/workflows/ci.yml/badge.svg)](https://github.com/Mohit20198/RAGSentinel/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python)](https://python.org)
+[![LangGraph](https://img.shields.io/badge/LangGraph-Agentic-green)](https://github.com/langchain-ai/langgraph)
+[![Qdrant](https://img.shields.io/badge/Vector%20DB-Qdrant-red)](https://qdrant.tech)
 
-- **Agentic Intelligence**: LangGraph for cyclic reasoning, multi-step planning, and conversation memory.
-- **Guardrails**: NeMo Guardrails gate blocks off-topic, jailbreak, and injection inputs before any retrieval.
-- **LLM Gateway**: Portkey routes all LLM calls with automatic fallback between primary and backup Groq keys.
-- **Enterprise Search**: Qdrant Cloud for high-performance vector search + FlashRank for local semantic reranking.
-- **Gemini Embeddings**: Google `gemini-embedding-2-preview` (3072-dim) via `langchain-google-genai`.
-- **Local Document Parsing**: PDF, HTML, TXT, DOCX, PPTX parsed entirely on-device — no external OCR service.
-- **Observability**: Full trace nesting with **Pydantic Logfire** and **LangSmith** across every agent node.
-- **Evaluation Suite**: RAGAS-powered eval pipeline (6 metrics) with a dedicated Streamlit demo app.
+> A production-grade, enterprise agentic RAG system that separates **technical signal** from **noisy data** using LangGraph cyclic reasoning, semantic reranking, conversation memory, and NeMo Guardrails for safety.
+
+</div>
 
 ---
 
-## Agent Intelligence Flow
+## What is RAGSentinel?
 
-```mermaid
-graph TD
-    User((User)) --> UI[Streamlit UI]
-    UI --> API[FastAPI /query]
-    API --> Guard{NeMo Guardrails}
-    Guard -->|Blocked| UI
-    Guard -->|Pass| Planner{Planner Node}
-    Planner -->|Conversational| Responder[Responder Node]
-    Planner -->|Technical| Retriever[Retriever Node]
-    Retriever --> Reranker[FlashRank Local Reranker]
-    Reranker --> Responder
-    Responder --> UI
-    Responder -.-> Memory[(LangGraph MemorySaver)]
+RAGSentinel is built around a core insight: **not all retrieved documents are equal**. Most RAG systems treat all retrieved content the same — RAGSentinel uses a multi-stage intelligence pipeline to:
+
+- 🛡️ **Guard** every query through NeMo Guardrails before retrieval even begins
+- 🧠 **Plan** whether to retrieve or respond from memory using conversation history
+- 🔍 **Retrieve** from a Qdrant vector store using 3072-dim Gemini embeddings
+- 📊 **Rerank** results locally with FlashRank for zero-latency semantic scoring
+- ✅ **Respond** with grounded, traceable answers via Groq Llama 3.3 70B
+
+---
+
+## Agent Flow
+
+```
+User Query
+    │
+    ▼
+┌─────────────────┐
+│ NeMo Guardrails │  ◄── blocks jailbreaks, off-topic, injections
+└────────┬────────┘
+         │ Pass
+         ▼
+┌─────────────────┐
+│  Planner Node   │  ◄── routes: CONVERSATIONAL vs TECHNICAL
+└────────┬────────┘
+         │
+    ┌────┴─────┐
+    │          │
+    ▼          ▼
+Responder   Retriever Node
+ (memory)       │
+            FlashRank Reranker
+                │
+            Responder Node
+                │
+            ◄── LangGraph MemorySaver (thread memory)
 ```
 
 ---
 
-## Project Structure
+## Architecture
 
-```text
+```
+ragsentinel/
 ├── app/
 │   ├── agents/
-│   │   └── nodes/       # Planner, Retriever, Responder LangGraph nodes
-│   ├── gateway/         # Portkey LLM gateway — primary + fallback Groq routing
-│   ├── guardrails/      # NeMo Guardrails input/output filtering
+│   │   ├── nodes/
+│   │   │   ├── planner.py      # Routes: conversational vs technical
+│   │   │   ├── retriever.py    # Embeds query → Qdrant search → FlashRank
+│   │   │   └── responder.py    # Synthesizes final answer with Groq LLM
+│   │   ├── graph.py            # LangGraph state machine definition
+│   │   └── state.py            # AgentState TypedDict schema
+│   ├── gateway/
+│   │   └── client.py           # Portkey LLM gateway (primary + fallback Groq)
+│   ├── guardrails/
+│   │   └── rails.py            # NeMo Guardrails — input/output safety filter
 │   ├── ingestion/
-│   │   ├── chunking/    # Paragraph-based text splitter (1500 char max)
-│   │   └── loaders/     # Local parsers — PDF (pypdf), HTML, TXT, DOCX, PPTX
-│   ├── services/
-│   │   └── retrieval/   # Gemini embeddings + Qdrant search + FlashRank reranking
-│   ├── config.py        # Centralized environment variable management
-│   └── main.py          # FastAPI entrypoint — guardrails gate + /query endpoint
-├── evals/               # RAGAS evaluation suite + Streamlit 3-tab demo
-├── ui/                  # Streamlit chat interface with reasoning step transparency
-├── processed_data/      # Auto-generated — parsed & chunked JSON output per document
-├── docs/                # Architectural and operational guides (11 docs)
-├── DATA/                # Sample datasets (True vs Noisy documentation)
-└── requirements.txt     # Pinned dependencies
+│   │   ├── chunking/
+│   │   │   └── splitter.py     # Paragraph-based splitter (1500 char max)
+│   │   └── loaders/
+│   │       ├── pdf.py          # pypdf + pdfplumber local PDF parsing
+│   │       ├── html.py         # BeautifulSoup HTML extraction
+│   │       ├── office.py       # python-docx / python-pptx parsing
+│   │       └── text.py         # Plain text loader
+│   ├── services/retrieval/
+│   │   ├── embedding.py        # Gemini text-embedding-2-preview (3072-dim)
+│   │   ├── qdrant_service.py   # Qdrant Cloud vector search
+│   │   └── ranking_service.py  # FlashRank local cross-encoder reranking
+│   ├── config.py               # Centralised env var management
+│   └── main.py                 # FastAPI entrypoint — /query, /health, /graph
+├── ui/
+│   └── app.py                  # Streamlit chat UI with reasoning step display
+├── evals/
+│   ├── pipeline.py             # RAGAS evaluation runner (6 metrics)
+│   └── app.py                  # Streamlit 3-tab eval dashboard
+├── tests/
+│   └── test_health.py          # pytest health + root endpoint checks
+├── .github/workflows/ci.yml    # GitHub Actions — lint, format, type-check, test
+├── docker-compose.yml          # Orchestrates backend + UI containers
+├── Makefile                    # Developer shortcuts
+├── pyproject.toml              # Ruff, Mypy, Pytest config
+└── requirements.txt            # All dependencies (prod + dev)
 ```
 
 ---
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Orchestration | LangChain + LangGraph |
-| LLMs | Groq (Llama 3.3 70B) via **Portkey** gateway |
-| Guardrails | NeMo Guardrails |
-| Vector DB | Qdrant Cloud |
-| Reranking | FlashRank (local, zero-latency) |
-| Embeddings | Gemini `gemini-embedding-2-preview` (3072-dim) |
-| Document Parsing | pypdf + pdfplumber (local, no OCR service) |
-| Observability | Pydantic Logfire + LangSmith |
-| Evaluation | RAGAS + custom Tool Correctness (Jaccard) |
+| Layer | Technology | Purpose |
+|---|---|---|
+| **Orchestration** | LangGraph + LangChain | Cyclic agent state machine with memory |
+| **LLM** | Groq Llama 3.3 70B via Portkey | Fast inference with automatic fallback |
+| **Guardrails** | NVIDIA NeMo Guardrails | Input/output safety and topic filtering |
+| **Vector DB** | Qdrant Cloud | High-performance ANN vector search |
+| **Embeddings** | Gemini `gemini-embedding-2-preview` | 3072-dim semantic text embeddings |
+| **Reranking** | FlashRank (local) | Zero-latency cross-encoder reranking |
+| **Document Parsing** | pypdf, pdfplumber, BS4, python-docx | Local parsing — no external OCR |
+| **Observability** | Pydantic Logfire + LangSmith | Full distributed tracing across every node |
+| **Evaluation** | RAGAS + DeepEval | 6-metric RAG quality assessment suite |
+| **API** | FastAPI + Uvicorn | Async REST API with Swagger UI |
+| **Frontend** | Streamlit | Chat UI with reasoning transparency |
+| **CI/CD** | GitHub Actions | Automated lint, test, type-check on push |
+| **Containerisation** | Docker + Docker Compose | One-command local orchestration |
 
 ---
 
-## Getting Started
+## Quick Start
 
-### 1. Install dependencies
+### Prerequisites
 
-**Using Makefile (Recommended)**:
-```powershell
+- Python 3.10+
+- A Qdrant Cloud account (free tier works)
+- API keys for: Groq, Portkey, Gemini, LangSmith, Logfire
+
+### 1. Clone and install
+
+```bash
+git clone https://github.com/Mohit20198/RAGSentinel.git
+cd RAGSentinel
 make install
-# Or for development: make install-dev
-```
-
-**Manual installation**:
-```powershell
-python -m venv tenvv
-.\tenvv\Scripts\activate
-pip install -r requirements.txt
 ```
 
 ### 2. Configure environment
 
-Create a `.env` file with the following keys:
+Copy and fill in your API keys:
 
-```env
-# Groq Reasoning Engine (Llama 3.3)
-GROQ_API_KEY = ""
-GROQ_FALLBACK_API_KEY = ""          # second Groq key, or same as primary
-
-# Portkey LLM Gateway
-PORTKEY_API_KEY = ""
-
-# Qdrant Vector DB
-QDRANT_API_KEY = ""
-QDRANT_CLUSTER_ENDPOINT = ""        # e.g. https://your-cluster.cloud.qdrant.io:6333
-
-# Pydantic Logfire Observability
-LOGFIRE_TOKEN = ""
-
-# LangSmith
-LANGSMITH_TRACING = true
-LANGSMITH_ENDPOINT = https://api.smith.langchain.com
-LANGSMITH_API_KEY = ""
-LANGSMITH_PROJECT = ""
-
-# Streamlit UI → FastAPI
-BACKEND_URL = ""                    # e.g. http://localhost:8000
-
-# Eval judge LLM (keep separate from main key to avoid rate-limiting the live app)
-JUDGE_GROQ = ""
-
-# Gemini Embeddings
-GEMINI_API_KEY = ""
+```bash
+cp .env.example .env
 ```
 
-### 3. Run data ingestion
+```env
+# LLM (Groq via Portkey)
+GROQ_API_KEY=""
+GROQ_FALLBACK_API_KEY=""
+PORTKEY_API_KEY=""
 
-Parses all documents in `DATA/`, chunks them, saves metadata to `processed_data/`, and indexes vectors into Qdrant.
+# Vector DB
+QDRANT_API_KEY=""
+QDRANT_CLUSTER_ENDPOINT=""     # e.g. https://your-cluster.cloud.qdrant.io:6333
 
-```powershell
+# Gemini Embeddings
+GEMINI_API_KEY=""
+
+# Observability
+LOGFIRE_TOKEN=""
+LANGSMITH_TRACING=true
+LANGSMITH_ENDPOINT=https://api.smith.langchain.com
+LANGSMITH_API_KEY=""
+LANGSMITH_PROJECT=""
+
+# Eval judge (separate key to avoid rate-limiting live app)
+JUDGE_GROQ=""
+
+# Streamlit → FastAPI
+BACKEND_URL=""                 # e.g. http://localhost:8000
+```
+
+### 3. Ingest documents
+
+Drop your files (PDF, DOCX, HTML, PPTX, TXT) into `DATA/` and run:
+
+```bash
 python -m app.ingestion.processor DATA --wipe
 ```
 
-> Pass `--wipe` to drop and recreate the Qdrant collection. Omit it to append to an existing collection.
+> `--wipe` drops and recreates the Qdrant collection. Omit to append.
 
-### 4. Launch the app
+### 4. Run the application
 
-**Option A: Docker Compose (Recommended)**
-```powershell
+**Option A — Docker Compose (recommended):**
+```bash
 make docker-up
-# To stop: make docker-down
+# Backend → http://localhost:8000
+# UI      → http://localhost:8501
 ```
 
-**Option B: Local Makefile**
-```powershell
-# Terminal 1 — FastAPI backend
-make run-backend
+**Option B — Local processes:**
+```bash
+# Terminal 1
+make run-backend     # FastAPI on :8000
 
-# Terminal 2 — Streamlit UI
-make run-ui
-```
-
-**Option C: Manual Execution**
-```powershell
-# Terminal 1 — FastAPI backend
-uvicorn app.main:app --reload --port 8000
-
-# Terminal 2 — Streamlit UI
-streamlit run ui/app.py
+# Terminal 2
+make run-ui          # Streamlit on :8501
 ```
 
 ### 5. Run the eval suite (optional)
 
-```powershell
-# Requires the FastAPI backend running on :8000
+```bash
+# Requires the backend running on :8000
 streamlit run evals/app.py
+```
+
+---
+
+## Developer Commands
+
+```bash
+make install      # Install all dependencies
+make format       # Auto-format code with Ruff
+make lint         # Lint check with Ruff
+make typecheck    # Static type analysis with Mypy
+make test         # Run pytest suite
+make docker-up    # Start all services via Docker Compose
+make docker-down  # Stop Docker Compose services
+make clean        # Remove all __pycache__ and build artifacts
 ```
 
 ---
@@ -178,19 +229,54 @@ streamlit run evals/app.py
 ## Documentation Index
 
 | # | Guide | What it covers |
-|---|-------|---------------|
-| 01 | [System Overview](docs/01_SYSTEM_OVERVIEW.md) | High-level vision and end-to-end flow |
-| 02 | [Ingestion Engine](docs/02_INGESTION_ENGINE.md) | Document parsing and indexing pipeline |
-| 03 | [Node Intelligence](docs/03_NODE_INTELLIGENCE.md) | Planner, Retriever, Responder internals |
-| 04 | [Observability](docs/04_TRACING_AND_OBSERVABILITY.md) | Logfire + LangSmith tracing |
-| 05 | [Environment Variables](docs/05_ENVIRONMENT_VARIABLES.md) | All env vars and configuration reference |
-| 06 | [Known Gotchas](docs/06_KNOWN_GOTCHAS.md) | Non-obvious bugs and architectural decisions |
-| 07 | [FlashRank Reranking](docs/07_FLASHRANK_RERANKING.md) | Local semantic reranker deep-dive |
-| 08 | [Guardrails](docs/08_GUARDRAILS.md) | NeMo Guardrails implementation |
-| 09 | [LLM Gateway](docs/09_LLM_GATEWAY.md) | Portkey routing, fallback, and observability |
-| 10 | [Evals](docs/10_EVALS.md) | RAGAS metrics theory and token budget |
-| 11 | [Evals Pipeline](docs/11_EVALS_PIPELINE.md) | Live eval pipeline and Streamlit demo |
+|---|---|---|
+| 01 | [System Overview](DOCS/01_SYSTEM_OVERVIEW.md) | End-to-end architecture and design decisions |
+| 02 | [Ingestion Engine](DOCS/02_INGESTION_ENGINE.md) | Document parsing and Qdrant indexing pipeline |
+| 03 | [Node Intelligence](DOCS/03_NODE_INTELLIGENCE.md) | Planner, Retriever, Responder internals |
+| 04 | [Observability](DOCS/04_TRACING_AND_OBSERVABILITY.md) | Logfire + LangSmith distributed tracing |
+| 05 | [Environment Variables](DOCS/05_ENVIRONMENT_VARIABLES.md) | Full configuration reference |
+| 06 | [Known Gotchas](DOCS/06_KNOWN_GOTCHAS.md) | Non-obvious bugs and architectural decisions |
+| 07 | [FlashRank Reranking](DOCS/07_FLASHRANK_RERANKING.md) | Local semantic reranker deep-dive |
+| 08 | [Guardrails](DOCS/08_GUARDRAILS.md) | NeMo Guardrails implementation guide |
+| 09 | [LLM Gateway](DOCS/09_LLM_GATEWAY.md) | Portkey routing, fallback, and observability |
+| 10 | [Evals](DOCS/10_EVALS.md) | RAGAS metrics theory and token budget |
+| 11 | [Evals Pipeline](DOCS/11_EVALS_PIPELINE.md) | Live eval pipeline and Streamlit demo |
 
 ---
 
-*Built for High-Scale Enterprise Document Intelligence.*
+## Evaluation Metrics (RAGAS)
+
+RAGSentinel ships with a 6-metric RAGAS evaluation suite:
+
+| Metric | Measures |
+|---|---|
+| **Faithfulness** | Is the answer grounded in the retrieved context? |
+| **Answer Relevancy** | Does the answer address the question asked? |
+| **Context Precision** | Are the retrieved chunks actually relevant? |
+| **Context Recall** | Are all necessary facts present in context? |
+| **Answer Correctness** | Is the answer factually correct? |
+| **Tool Correctness** | Custom Jaccard-based retrieval accuracy |
+
+---
+
+## CI / CD
+
+Every push to `main` automatically runs:
+
+1. **Ruff** — format check + lint
+2. **Mypy** — static type analysis
+3. **Pytest** — endpoint health tests
+
+View the latest run → [GitHub Actions](https://github.com/Mohit20198/RAGSentinel/actions)
+
+---
+
+## License
+
+Distributed under the [MIT License](LICENSE).
+
+---
+
+<div align="center">
+  <sub>Built for high-scale enterprise document intelligence.</sub>
+</div>

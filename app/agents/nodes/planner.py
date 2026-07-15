@@ -1,6 +1,7 @@
+import logfire
+
 from app.agents.state import AgentState
 from app.gateway import get_langchain_llm
-import logfire
 
 # Portkey-backed LLM: fallback + cache + retry — same .invoke() interface as ChatGroq
 llm = get_langchain_llm(feature="planner")
@@ -19,19 +20,19 @@ def planner_node(state: AgentState):
     user_message = state["messages"][-1]["content"] if state["messages"] else ""
 
     prompt = f"""
-    You are an intelligent Assistant Planner. 
+    You are an intelligent Assistant Planner.
     Analyze the conversation history and the latest user message.
-    
+
     CONVERSATION HISTORY:
     {history}
-    
+
     LATEST MESSAGE:
     "{user_message}"
-    
+
     Task:
     1. If the latest message is a greeting (hi, hello) or a question that can be answered using ONLY the conversation history above (e.g., "what is my name"), respond with 'CONVERSATIONAL'.
     2. If it is a technical question about Kubernetes, Intel, or Networking that requires fresh documentation, output a refined search query.
-    
+
     Output ONLY 'CONVERSATIONAL' or the search query.
     """
 

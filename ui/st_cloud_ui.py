@@ -1,10 +1,10 @@
 import os
-import streamlit as st
-import requests
 import time
 import uuid
-import logfire
 
+import logfire
+import requests
+import streamlit as st
 
 # Initialize Logfire
 try:
@@ -45,9 +45,7 @@ with st.sidebar:
     st.info(f"Memory ID: {st.session_state.session_id[:8]}")
 
     if st.button("🗑️ Clear History & Memory", width="stretch", type="primary"):
-        logfire.warning(
-            f"🗑️ Memory Wipe Triggered for session: {st.session_state.session_id}"
-        )
+        logfire.warning(f"🗑️ Memory Wipe Triggered for session: {st.session_state.session_id}")
         st.session_state.messages = []
         st.session_state.session_id = str(uuid.uuid4())
         st.rerun()
@@ -87,9 +85,7 @@ if prompt := st.chat_input("Ask about your documentation..."):
                         response = requests.post(url, json=payload, timeout=60)
 
                         if response.status_code != 200:
-                            st.error(
-                                f"Backend Error: {response.status_code} - {response.text}"
-                            )
+                            st.error(f"Backend Error: {response.status_code} - {response.text}")
                             st.stop()
 
                         data = response.json()
@@ -98,9 +94,7 @@ if prompt := st.chat_input("Ask about your documentation..."):
                     for step in steps:
                         st.markdown(f"⚙️ {step}", unsafe_allow_html=False)
 
-                    status.update(
-                        label="✅ Answer Synthesized", state="complete", expanded=False
-                    )
+                    status.update(label="✅ Answer Synthesized", state="complete", expanded=False)
 
                 except Exception as e:
                     logfire.error(f"❌ UI-Backend Connection Failed: {e}")
@@ -129,7 +123,5 @@ if prompt := st.chat_input("Ask about your documentation..."):
             else:
                 st.caption("ℹ️ No context retrieved — conversational response.")
 
-            st.session_state.messages.append(
-                {"role": "assistant", "content": full_answer}
-            )
+            st.session_state.messages.append({"role": "assistant", "content": full_answer})
             logfire.info("✅ Chat cycle completed successfully.")

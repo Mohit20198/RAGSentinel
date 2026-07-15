@@ -25,9 +25,7 @@ def parse_pdf(file_path: str) -> str:
 
             # Fallback: use pdfplumber for any pages pypdf returned blank
             if blank_pages:
-                logfire.info(
-                    f"pypdf returned blank on pages {blank_pages} — retrying with pdfplumber."
-                )
+                logfire.info(f"pypdf returned blank on pages {blank_pages} — retrying with pdfplumber.")
                 try:
                     import pdfplumber
 
@@ -43,9 +41,7 @@ def parse_pdf(file_path: str) -> str:
             full_text = "\n".join(text_parts)
 
             if not full_text.strip():
-                logfire.warning(
-                    f"No text extracted from {file_path}. File may be fully image-based."
-                )
+                logfire.warning(f"No text extracted from {file_path}. File may be fully image-based.")
             else:
                 logfire.info(f"Extracted {len(full_text)} characters from {file_path}.")
 

@@ -6,35 +6,30 @@ and 60s cooldowns between experiments — calibrated for Groq's 6,000 TPM on_dem
 Contexts are truncated to 300 chars (2 chunks max) so no single request exceeds the limit.
 """
 
-import os
 import asyncio
+import os
+
 import logfire
 import pandas as pd
 from openai import AsyncOpenAI
-
-
-from ragas.llms import llm_factory
-from ragas.embeddings import HuggingFaceEmbeddings
 from ragas import SingleTurnSample
+from ragas.embeddings import HuggingFaceEmbeddings
+from ragas.llms import llm_factory
 from ragas.metrics.collections import (
-    Faithfulness,
+    AnswerCorrectness,
     AnswerRelevancy,
     ContextPrecision,
     ContextRecall,
-    AnswerCorrectness,
+    Faithfulness,
 )
 
 GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 JUDGE_MODEL = "llama-3.1-8b-instant"
 COOLDOWN_STANDARD = 62
 COOLDOWN_MINI = 40  # between individual samples — lets sliding TPM window recover (~2,800 tok/sample)
-GENERAL_BATCH_SIZE = (
-    1  # one sample at a time: abatch_score fires calls concurrently per sample,
-)
+GENERAL_BATCH_SIZE = 1  # one sample at a time: abatch_score fires calls concurrently per sample,
 # so batch>1 stacks multiple samples' async calls inside the same second
-CONTEXT_TRUNCATE = (
-    300  # chars per context chunk — reduces single request from ~7,700 to ~400 tokens
-)
+CONTEXT_TRUNCATE = 300  # chars per context chunk — reduces single request from ~7,700 to ~400 tokens
 CONTEXT_LIMIT = 2  # number of context chunks passed to RAGAS per sample
 
 
@@ -56,7 +51,7 @@ async def _cooldown(seconds: int, label: str, status_cb=None):
     for _ in range(seconds // 10):
         await asyncio.sleep(10)
     if status_cb:
-        status_cb(f"✅ Ready — starting next experiment.")
+        status_cb("✅ Ready — starting next experiment.")
 
 
 def _prep_samples(golden_dataset: dict) -> list:
@@ -80,25 +75,17 @@ def _prep_samples(golden_dataset: dict) -> list:
 
 def _score_df(metric_key: str, samples: list, scores) -> pd.DataFrame:
     return pd.DataFrame(
-        [
-            {"question": s["question"][:65], metric_key: round(float(r.value), 3)}
-            for s, r in zip(samples, scores)
-        ]
+        [{"question": s["question"][:65], metric_key: round(float(r.value), 3)} for s, r in zip(samples, scores)]
     )
 
 
-async def _batched_score(
-    metric, inputs: list, samples: list, status_cb=None, label: str = ""
-) -> list:
+async def _batched_score(metric, inputs: list, samples: list, status_cb=None, label: str = "") -> list:
     """
     Runs abatch_score in chunks of GENERAL_BATCH_SIZE with cooldowns between chunks.
     Keeps each burst under 6,000 TPM on Groq's on_demand tier.
     """
     all_scores = []
-    batches = [
-        inputs[i : i + GENERAL_BATCH_SIZE]
-        for i in range(0, len(inputs), GENERAL_BATCH_SIZE)
-    ]
+    batches = [inputs[i : i + GENERAL_BATCH_SIZE] for i in range(0, len(inputs), GENERAL_BATCH_SIZE)]
     for b_idx, batch in enumerate(batches):
         if b_idx > 0:
             await _cooldown(COOLDOWN_MINI, f"{label} batch {b_idx}", status_cb)
@@ -133,14 +120,10 @@ async def run_all_metrics(golden_dataset: dict, status_cb=None) -> dict:
                 }
                 for s in samples
             ]
-            scores = await _batched_score(
-                Faithfulness(llm=judge_llm), inputs, samples, status_cb, "Faithfulness"
-            )
+            scores = await _batched_score(Faithfulness(llm=judge_llm), inputs, samples, status_cb, "Faithfulness")
             df = _score_df("faithfulness", samples, scores)
             results["faithfulness"] = df
-            logfire.info(
-                "🧪 Faithfulness done", avg=round(df["faithfulness"].mean(), 3)
-            )
+            logfire.info("🧪 Faithfulness done", avg=round(df["faithfulness"].mean(), 3))
 
         await _cooldown(COOLDOWN_STANDARD, "Faithfulness", status_cb)
 
@@ -148,10 +131,7 @@ async def run_all_metrics(golden_dataset: dict, status_cb=None) -> dict:
         if status_cb:
             status_cb(f"🧪 Exp 2/6 — Answer Relevancy ({len(samples)} samples)...")
         with logfire.span("🧪 Exp 2 — Answer Relevancy"):
-            inputs = [
-                {"user_input": s["question"], "response": s["actual_response"]}
-                for s in samples
-            ]
+            inputs = [{"user_input": s["question"], "response": s["actual_response"]} for s in samples]
             scores = await _batched_score(
                 AnswerRelevancy(llm=judge_llm, embeddings=ragas_embeddings),
                 inputs,
@@ -161,9 +141,7 @@ async def run_all_metrics(golden_dataset: dict, status_cb=None) -> dict:
             )
             df = _score_df("answer_relevancy", samples, scores)
             results["answer_relevancy"] = df
-            logfire.info(
-                "🧪 Answer Relevancy done", avg=round(df["answer_relevancy"].mean(), 3)
-            )
+            logfire.info("🧪 Answer Relevancy done", avg=round(df["answer_relevancy"].mean(), 3))
 
         await _cooldown(COOLDOWN_STANDARD, "Answer Relevancy", status_cb)
 
@@ -216,15 +194,13 @@ async def run_all_metrics(golden_dataset: dict, status_cb=None) -> dict:
             )
             df = _score_df("context_recall", samples, scores)
             results["context_recall"] = df
-            logfire.info(
-                "🧪 Context Recall done", avg=round(df["context_recall"].mean(), 3)
-            )
+            logfire.info("🧪 Context Recall done", avg=round(df["context_recall"].mean(), 3))
 
         await _cooldown(COOLDOWN_STANDARD, "Context Recall", status_cb)
 
         # ── Exp 5: Answer Correctness (split into batches) ────────────────────
         if status_cb:
-            status_cb(f"🧪 Exp 5/6 — Answer Correctness batch 1/2...")
+            status_cb("🧪 Exp 5/6 — Answer Correctness batch 1/2...")
         with logfire.span("🧪 Exp 5 — Answer Correctness"):
             inputs = [
                 {
@@ -268,9 +244,7 @@ async def run_all_metrics(golden_dataset: dict, status_cb=None) -> dict:
                 )
             df = pd.DataFrame(tool_rows)
             results["tool_correctness"] = df
-            logfire.info(
-                "🧪 Tool Correctness done", avg=round(df["tool_correctness"].mean(), 3)
-            )
+            logfire.info("🧪 Tool Correctness done", avg=round(df["tool_correctness"].mean(), 3))
 
         if status_cb:
             status_cb("✅ All 6 experiments complete!")

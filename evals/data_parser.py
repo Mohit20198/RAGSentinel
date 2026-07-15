@@ -12,16 +12,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import docx as python_docx
 from pptx import Presentation
 
-from app.ingestion.loaders.text import parse_text
-from app.ingestion.loaders.html import parse_html
 from app.ingestion.chunking.splitter import chunk_text
+from app.ingestion.loaders.html import parse_html
+from app.ingestion.loaders.text import parse_text
 
-TRUE_DATA_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(__file__)), "data", "true_data"
-)
-NOISY_DATA_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(__file__)), "data", "noisy_data"
-)
+TRUE_DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "true_data")
+NOISY_DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "noisy_data")
 NOISY_ALLOWED_EXTS = {".pptx", ".docx", ".txt"}
 
 

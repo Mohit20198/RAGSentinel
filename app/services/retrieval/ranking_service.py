@@ -1,4 +1,5 @@
 import time
+
 import logfire
 from flashrank import Ranker, RerankRequest
 
@@ -35,9 +36,7 @@ def rerank_documents(query: str, documents: list[str], top_n: int = 5) -> list[s
         return []
 
     start_time = time.time()
-    logfire.info(
-        f"📡 [Reranker] Sending {len(documents)} docs to FlashRank Cross-Encoder..."
-    )
+    logfire.info(f"📡 [Reranker] Sending {len(documents)} docs to FlashRank Cross-Encoder...")
 
     try:
         ranker = _get_ranker()
@@ -55,9 +54,7 @@ def rerank_documents(query: str, documents: list[str], top_n: int = 5) -> list[s
 
         duration = time.time() - start_time
         top_score = results[0]["score"] if results else "N/A"
-        logfire.info(
-            f"✅ [Reranker] Done in {duration:.2f}s. Top semantic score: {top_score}"
-        )
+        logfire.info(f"✅ [Reranker] Done in {duration:.2f}s. Top semantic score: {top_score}")
 
         return reranked_docs
 

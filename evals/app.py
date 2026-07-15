@@ -17,15 +17,16 @@ logfire.configure(token=os.getenv("LOGFIRE_TOKEN"), service_name="evals")
 # ─────────────────────────────────────────────────────────────────────────────
 import asyncio
 import json
+
 import nest_asyncio
 import pandas as pd
 import streamlit as st
 
 nest_asyncio.apply()
 
-from evals.pipeline import run_pipeline, load_golden_dataset
-from evals.guardrails_eval import run_guardrails_eval, compute_guardrails_metrics
+from evals.guardrails_eval import compute_guardrails_metrics, run_guardrails_eval
 from evals.metrics import run_all_metrics
+from evals.pipeline import load_golden_dataset, run_pipeline
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Page config
@@ -75,9 +76,7 @@ def _color_score(val):
 def _render_metric_table(df: pd.DataFrame, metric_col: str, title: str):
     avg = df[metric_col].mean()
     st.markdown(f"**{title}** — AVG: {_badge(avg)} `{avg:.2f}` {_grade(avg)}")
-    styled = df.style.applymap(_color_score, subset=[metric_col]).format(
-        {metric_col: "{:.3f}"}
-    )
+    styled = df.style.applymap(_color_score, subset=[metric_col]).format({metric_col: "{:.3f}"})
     st.dataframe(styled, use_container_width=True, hide_index=True)
 
 
@@ -108,9 +107,7 @@ golden = st.session_state.golden
 # Header
 # ─────────────────────────────────────────────────────────────────────────────
 st.title("🧪 Enterprise RAG — Evaluation Suite")
-st.caption(
-    "Step 1: Review ground truth → Step 2: Run live pipeline → Step 3: Score with RAGAS"
-)
+st.caption("Step 1: Review ground truth → Step 2: Run live pipeline → Step 3: Score with RAGAS")
 st.divider()
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -142,9 +139,7 @@ with tab1:
                 "ID": s["id"],
                 "Domain": s["domain"].replace("_", " ").title(),
                 "Question": s["question"],
-                "Reference Answer": s["reference"][:120] + "..."
-                if len(s["reference"]) > 120
-                else s["reference"],
+                "Reference Answer": s["reference"][:120] + "..." if len(s["reference"]) > 120 else s["reference"],
                 "Expected Tool": s["expected_tools"][0] if s["expected_tools"] else "—",
             }
         )
@@ -173,9 +168,7 @@ with tab1:
             }
         )
     st.dataframe(pd.DataFrame(g_rows), use_container_width=True, hide_index=True)
-    st.caption(
-        "6 guardrails test cases: 3 adversarial (should block) + 3 legit (should pass)"
-    )
+    st.caption("6 guardrails test cases: 3 adversarial (should block) + 3 legit (should pass)")
 
     with st.expander("View raw golden_dataset.json"):
         st.json(golden)
@@ -226,9 +219,7 @@ with tab2:
         def pipeline_cb(i, total, question, stage, response=""):
             pct = int((i / total) * 100)
             if stage == "calling":
-                progress_bar.progress(
-                    pct, text=f"[{i + 1}/{total}] Calling /query: {question[:60]}..."
-                )
+                progress_bar.progress(pct, text=f"[{i + 1}/{total}] Calling /query: {question[:60]}...")
             else:
                 short_q = question[:55] + "..." if len(question) > 55 else question
                 short_r = response[:80] + "..." if len(response) > 80 else response
@@ -236,9 +227,7 @@ with tab2:
                     {
                         "#": i + 1,
                         "Question": short_q,
-                        "Live Response (truncated)": short_r
-                        if short_r
-                        else "⚠️ No response",
+                        "Live Response (truncated)": short_r if short_r else "⚠️ No response",
                         "Status": "✅" if short_r else "❌",
                     }
                 )
@@ -257,9 +246,7 @@ with tab2:
             st.session_state.enriched_dataset = enriched
 
         progress_bar.progress(100, text="✅ All responses collected!")
-        status_slot.success(
-            f"💾 {len(enriched['rag_samples'])} responses stored in session."
-        )
+        status_slot.success(f"💾 {len(enriched['rag_samples'])} responses stored in session.")
 
         # ── Guardrails tests ──────────────────────────────────────────────────
         st.divider()
@@ -274,9 +261,7 @@ with tab2:
             )
 
         with logfire.span("🛡️ Streamlit — Guardrails Tests"):
-            g_results = run_guardrails_eval(
-                enriched["guardrails_samples"], progress_callback=g_cb
-            )
+            g_results = run_guardrails_eval(enriched["guardrails_samples"], progress_callback=g_cb)
             g_metrics = compute_guardrails_metrics(g_results)
             st.session_state.guardrails_results = g_results
             st.session_state.pipeline_done = True
@@ -300,9 +285,7 @@ with tab2:
                     "Result": result_label,
                 }
             )
-        st.dataframe(
-            pd.DataFrame(g_rows_live), use_container_width=True, hide_index=True
-        )
+        st.dataframe(pd.DataFrame(g_rows_live), use_container_width=True, hide_index=True)
 
         mc1, mc2, mc3, mc4 = st.columns(4)
         mc1.metric("Correct", f"{g_metrics['correct']}/{g_metrics['total']}")
@@ -323,9 +306,7 @@ with tab2:
                     "Live Response": s["actual_response"][:100] + "..."
                     if len(s.get("actual_response", "")) > 100
                     else s.get("actual_response", ""),
-                    "Tool Called": s["actual_tools_called"][0]
-                    if s.get("actual_tools_called")
-                    else "—",
+                    "Tool Called": s["actual_tools_called"][0] if s.get("actual_tools_called") else "—",
                     "Contexts Retrieved": len(s.get("actual_contexts", [])),
                 }
             )
@@ -349,9 +330,7 @@ with tab2:
                         "Result": result_label,
                     }
                 )
-            st.dataframe(
-                pd.DataFrame(g_rows_prev), use_container_width=True, hide_index=True
-            )
+            st.dataframe(pd.DataFrame(g_rows_prev), use_container_width=True, hide_index=True)
             gm = compute_guardrails_metrics(st.session_state.guardrails_results)
             mc1, mc2, mc3, mc4 = st.columns(4)
             mc1.metric("Correct", f"{gm['correct']}/{gm['total']}")
@@ -406,11 +385,7 @@ with tab3:
                 status_slot.info(msg)
 
             with logfire.span("📊 Streamlit — Run Metrics Button"):
-                metric_results = _run_async(
-                    run_all_metrics(
-                        st.session_state.enriched_dataset, status_cb=status_cb
-                    )
-                )
+                metric_results = _run_async(run_all_metrics(st.session_state.enriched_dataset, status_cb=status_cb))
                 st.session_state.metric_results = metric_results
 
             status_slot.success("✅ All 6 experiments complete!")
@@ -432,9 +407,7 @@ with tab3:
             }
             for key, title in metric_display_names.items():
                 if key in st.session_state.metric_results:
-                    _render_metric_table(
-                        st.session_state.metric_results[key], key, title
-                    )
+                    _render_metric_table(st.session_state.metric_results[key], key, title)
 
         # ── Final Summary ─────────────────────────────────────────────────────
         if st.session_state.metric_results:
@@ -445,39 +418,27 @@ with tab3:
             summary = [
                 (
                     "Faithfulness",
-                    mr.get("faithfulness", pd.DataFrame())
-                    .get("faithfulness", pd.Series())
-                    .mean(),
+                    mr.get("faithfulness", pd.DataFrame()).get("faithfulness", pd.Series()).mean(),
                 ),
                 (
                     "Answer Relevancy",
-                    mr.get("answer_relevancy", pd.DataFrame())
-                    .get("answer_relevancy", pd.Series())
-                    .mean(),
+                    mr.get("answer_relevancy", pd.DataFrame()).get("answer_relevancy", pd.Series()).mean(),
                 ),
                 (
                     "Context Precision",
-                    mr.get("context_precision", pd.DataFrame())
-                    .get("context_precision", pd.Series())
-                    .mean(),
+                    mr.get("context_precision", pd.DataFrame()).get("context_precision", pd.Series()).mean(),
                 ),
                 (
                     "Context Recall",
-                    mr.get("context_recall", pd.DataFrame())
-                    .get("context_recall", pd.Series())
-                    .mean(),
+                    mr.get("context_recall", pd.DataFrame()).get("context_recall", pd.Series()).mean(),
                 ),
                 (
                     "Answer Correctness",
-                    mr.get("answer_correctness", pd.DataFrame())
-                    .get("answer_correctness", pd.Series())
-                    .mean(),
+                    mr.get("answer_correctness", pd.DataFrame()).get("answer_correctness", pd.Series()).mean(),
                 ),
                 (
                     "Tool Correctness",
-                    mr.get("tool_correctness", pd.DataFrame())
-                    .get("tool_correctness", pd.Series())
-                    .mean(),
+                    mr.get("tool_correctness", pd.DataFrame()).get("tool_correctness", pd.Series()).mean(),
                 ),
             ]
 

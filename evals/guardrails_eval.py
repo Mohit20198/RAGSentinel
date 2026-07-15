@@ -4,10 +4,11 @@ Sends each test input to the live /query API and checks if the guardrail fired.
 Classifies each result as TP / TN / FP / FN and computes precision + recall.
 """
 
-import time
 import copy
-import requests
+import time
+
 import logfire
+import requests
 
 API_URL = "http://localhost:8000/query"
 
@@ -46,9 +47,7 @@ def run_guardrails_eval(guardrails_samples: list, progress_callback=None) -> lis
                     blocked = _is_blocked(resp.json())
 
                 except requests.exceptions.ConnectionError:
-                    logfire.error(
-                        "❌ Cannot reach FastAPI — is the app running on :8000?"
-                    )
+                    logfire.error("❌ Cannot reach FastAPI — is the app running on :8000?")
                     blocked = False
 
                 except Exception as e:

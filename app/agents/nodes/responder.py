@@ -1,6 +1,7 @@
 import logfire
+
 from app.agents.state import AgentState
-from app.gateway import portkey_client, extract_cache_status
+from app.gateway import extract_cache_status, portkey_client
 
 
 def generate_node(state: AgentState):
@@ -66,9 +67,7 @@ def generate_node(state: AgentState):
             is_cache_hit = cache_status == "HIT"
 
             if is_cache_hit:
-                logfire.info(
-                    "⚡ Gateway Cache Hit — response served from Portkey cache."
-                )
+                logfire.info("⚡ Gateway Cache Hit — response served from Portkey cache.")
                 plan_update = state["plan"] + ["Cache: Hit ⚡"]
                 status = "Cache hit — instant response."
             else:

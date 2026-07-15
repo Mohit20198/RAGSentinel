@@ -1,6 +1,8 @@
 import time
+
 import logfire
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
+
 from app.config import settings
 
 BATCH_SIZE = 50
@@ -25,9 +27,7 @@ def _probe_gemini():
         logfire.info("Gemini embeddings ready (gemini-embedding-2-preview, 3072-dim).")
         return model
     except Exception as e:
-        logfire.warning(
-            f"Gemini probe failed: {e}. Will use sentence-transformers fallback."
-        )
+        logfire.warning(f"Gemini probe failed: {e}. Will use sentence-transformers fallback.")
         return None
 
 
@@ -73,15 +73,10 @@ def _embed_batch(batch: list[str]) -> list[list[float]]:
                 return _active_model.embed_documents(batch)
             except Exception as e:
                 err = str(e).lower()
-                is_rate_limit = any(
-                    x in err for x in ("429", "rate", "quota", "resource_exhausted")
-                )
+                is_rate_limit = any(x in err for x in ("429", "rate", "quota", "resource_exhausted"))
                 if is_rate_limit and attempt < 3:
                     wait = 2**attempt
-                    logfire.warning(
-                        f"Gemini rate limit hit — retrying in {wait}s "
-                        f"(attempt {attempt + 1}/4)."
-                    )
+                    logfire.warning(f"Gemini rate limit hit — retrying in {wait}s (attempt {attempt + 1}/4).")
                     time.sleep(wait)
                 else:
                     logfire.error(f"Gemini embedding failed: {e}")

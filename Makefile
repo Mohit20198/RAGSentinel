@@ -2,13 +2,9 @@
 
 .PHONY: install install-dev format lint typecheck test run-backend run-ui clean docker-up docker-down
 
-# Install production dependencies
+# Install dependencies
 install:
 	pip install -r requirements.txt
-
-# Install development dependencies
-install-dev: install
-	pip install -r requirements-dev.txt
 
 # Format code using Ruff
 format:

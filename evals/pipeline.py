@@ -5,12 +5,13 @@ Captures: actual_response (truncated to 300 chars), actual_contexts (from source
 and actual_tools_called (detected from thought_process).
 """
 
-import time
 import copy
 import json
 import os
-import requests
+import time
+
 import logfire
+import requests
 
 API_URL = "http://localhost:8000/query"
 RESPONSE_TRUNCATE = 300
@@ -28,11 +29,7 @@ def detect_tool(thought_process: list) -> str:
     joined = " ".join(thought_process).lower()
     if "guardrails fired" in joined:
         return "guardrails"
-    if (
-        "intent: technical" in joined
-        or "search term:" in joined
-        or "context retrieved" in joined
-    ):
+    if "intent: technical" in joined or "search term:" in joined or "context retrieved" in joined:
         return "retrieve_documents"
     if "conversational" in joined or "memory" in joined:
         return "direct_answer"
@@ -86,9 +83,7 @@ def run_pipeline(golden_dataset: dict, progress_callback=None) -> dict:
                     )
 
                 except requests.exceptions.ConnectionError:
-                    logfire.error(
-                        "❌ Cannot reach FastAPI — is the app running on :8000?"
-                    )
+                    logfire.error("❌ Cannot reach FastAPI — is the app running on :8000?")
                     sample["actual_response"] = ""
                     sample["actual_contexts"] = sample.get("relevant_contexts", [])
                     sample["actual_tools_called"] = ["unknown"]

@@ -1,11 +1,11 @@
 import os
-import streamlit as st
-import requests
 import time
 import uuid
-import logfire
-from dotenv import load_dotenv
 
+import logfire
+import requests
+import streamlit as st
+from dotenv import load_dotenv
 
 # Load environment variables explicitly from the root directory
 env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".env"))
@@ -54,9 +54,7 @@ with st.sidebar:
     st.info(f"Memory ID: {st.session_state.session_id[:8]}")
 
     if st.button("🗑️ Clear History & Memory", width="stretch", type="primary"):
-        logfire.warn(
-            f"🗑️ Memory Wipe Triggered for session: {st.session_state.session_id}"
-        )
+        logfire.warn(f"🗑️ Memory Wipe Triggered for session: {st.session_state.session_id}")
         st.session_state.messages = []
         st.session_state.session_id = str(uuid.uuid4())
         st.rerun()
@@ -104,9 +102,7 @@ if prompt := st.chat_input("Ask about your documentation..."):
                     for step in steps:
                         st.write(f"⚙️ {step}")
 
-                    status.update(
-                        label="✅ Answer Synthesized", state="complete", expanded=False
-                    )
+                    status.update(label="✅ Answer Synthesized", state="complete", expanded=False)
 
                     # --- SHOW SOURCES (NESTED EXPANDABLES) ---
                     sources = data.get("sources", [])
@@ -134,7 +130,5 @@ if prompt := st.chat_input("Ask about your documentation..."):
                 time.sleep(0.005)
 
             answer_placeholder.markdown(full_answer)
-            st.session_state.messages.append(
-                {"role": "assistant", "content": full_answer}
-            )
+            st.session_state.messages.append({"role": "assistant", "content": full_answer})
             logfire.info("✅ Chat cycle completed successfully.")

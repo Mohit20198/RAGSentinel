@@ -1,4 +1,5 @@
 import logfire
+
 from app.agents.state import AgentState
 from app.services.retrieval.qdrant_service import search_enterprise_knowledge
 from app.services.retrieval.ranking_service import rerank_documents
@@ -26,6 +27,6 @@ def retrieve_node(state: AgentState):
 
     return {
         "documents": formatted_docs,
-        "status": f"Found technical context.",
+        "status": "Found technical context.",
         "plan": state["plan"] + ["Context Retrieved"],
     }
