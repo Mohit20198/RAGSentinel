@@ -20,11 +20,11 @@
 
 RAGSentinel is built around a core insight: **not all retrieved documents are equal**. Most RAG systems treat all retrieved content the same — RAGSentinel uses a multi-stage intelligence pipeline to:
 
-- 🛡️ **Guard** every query through NeMo Guardrails before retrieval even begins
-- 🧠 **Plan** whether to retrieve or respond from memory using conversation history
-- 🔍 **Retrieve** from a Qdrant vector store using 3072-dim Gemini embeddings
-- 📊 **Rerank** results locally with FlashRank for zero-latency semantic scoring
-- ✅ **Respond** with grounded, traceable answers via Groq Llama 3.3 70B
+-  **Guard** every query through NeMo Guardrails before retrieval even begins
+- **Plan** whether to retrieve or respond from memory using conversation history
+-  **Retrieve** from a Qdrant vector store using 3072-dim Gemini embeddings
+-  **Rerank** results locally with FlashRank for zero-latency semantic scoring
+-  **Respond** with grounded, traceable answers via Groq Llama 3.3 70B
 
 ---
 
